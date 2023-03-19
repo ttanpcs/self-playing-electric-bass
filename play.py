@@ -1,11 +1,5 @@
-from yt_dlp import YoutubeDL
 import argparse
-from demucs.apply import apply_model
-from demucs.pretrained import get_model, DEFAULT_MODEL
-from demucs.audio import AudioFile, save_audio
 from pathlib import Path
-from basic_pitch.inference import predict
-from basic_pitch import ICASSP_2022_MODEL_PATH
 from mido import MidiFile
 from json import load
 from bluetooth import BluetoothSocket, RFCOMM, discover_devices, lookup_name
@@ -39,6 +33,7 @@ def reset(path_list):
                 path.unlink()
 
 def download_youtube_link(url):
+    from yt_dlp import YoutubeDL
     options={
         'format':'worstaudio/worst',
         'keepvideo':False,
@@ -48,6 +43,10 @@ def download_youtube_link(url):
         ydl.download([url])
 
 def seperate(args_stem, start, duration):
+    from demucs.apply import apply_model
+    from demucs.pretrained import get_model, DEFAULT_MODEL
+    from demucs.audio import AudioFile, save_audio
+
     model = get_model(name=DEFAULT_MODEL)
     model.cpu()
     model.eval()
@@ -115,6 +114,9 @@ def play():
     if not midi_temp.exists():
         if args.stem is None:
             args.stem = 'bass'
+        from basic_pitch.inference import predict
+        from basic_pitch import ICASSP_2022_MODEL_PATH
+
         _, midi_data, _ = predict(str(default_path / (args.stem + '.wav')))
         midi_data.write(str(midi_temp))
     print("Prediction done...")
