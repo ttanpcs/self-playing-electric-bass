@@ -19,7 +19,7 @@ def connect(bluetooth_config, sock):
             for addr in nearby_devices:
                 if data["name"] == lookup_name(addr):
                     print("found target bluetooth device with address ", addr)
-                    sock.connect((data["address"], port))
+                    sock.connect((addr, port))
                     break
 
 def reset(path_list):
