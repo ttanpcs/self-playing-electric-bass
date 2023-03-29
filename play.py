@@ -128,7 +128,8 @@ def play():
 
     # Send messages to raspberry pi
     for msg in MidiFile(str(midi_temp)).play():
-        sock.send(str(msg))
+        if msg.type == 'note_on':
+            sock.send(f'{msg.note} {msg.velocity}')
     sock.close()
 
 if __name__ == "__main__":
