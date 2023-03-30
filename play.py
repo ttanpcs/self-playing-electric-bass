@@ -84,12 +84,13 @@ def seperate(args_stem, start, duration):
 def play():
     parser = argparse.ArgumentParser("self-playing-bass",
                                     description="play any youtube link's baseline.")
-    parser.add_argument("url", type = str, default = None, help = "Youtube url to audio source.")
-    parser.add_argument("--reset", "-r", type = Path, default = [], help = "reset selected stored temporaries.", nargs = '*')
+    parser.add_argument("--url", "-u", type = str, default = None, help = "Youtube url to audio source.")
+    parser.add_argument("--reset", "-r", type = Path, default = [], help = "Reset selected stored temporaries.", nargs = '*')
     parser.add_argument("--stem", "-s", default = None, help = "Select which stem to use for demucs seperation.")
     parser.add_argument("--start", type = float, default = 0.0, help = "Where the sample should start from.")
     parser.add_argument("--duration", "-d", type = float, default = 30.0, help = "Number of seconds to sample after (start).")
     parser.add_argument("--bluetooth", "-b", default = 'blt_config.json', help = "Bluetooth configuration file path.")
+    parser.add_argument("--midi", "-m", type = Path, default=midi_temp, help="midi file path to play on bass.")
     args = parser.parse_args()
 
     # Cleans directory
@@ -97,29 +98,33 @@ def play():
     default_path.mkdir(parents=True, exist_ok=True)
     print("Cleaning done...")
     
-    # Downloads url from youtube
-    if not youtube_temp.exists():
-        download_youtube_link(args.url)
-    print("Downloading done...")
+    if args.midi == midi_temp:
+        # Downloads url from youtube
+        if not youtube_temp.exists():
+            if args.url is None:
+                print("Please specify a url with the --url flag")
+                exit()
+            download_youtube_link(args.url)
+        print("Downloading done...")
 
-    # # Seperates url into components
-    if args.stem is None:
-        if any(map(lambda x: not (default_path / (x + '.wav')).exists(), ['bass', 'vocals', 'drums', 'other'])):
-            seperate(None, args.start, args.duration)
-    elif not (default_path / (args.stem + '.wav')).exists():
-        seperate(args.stem, args.start, args.duration)
-    print("Seperation done...")
-
-    # Creates midi file from components
-    if not midi_temp.exists():
+        # # Seperates url into components
         if args.stem is None:
-            args.stem = 'bass'
-        from basic_pitch.inference import predict
-        from basic_pitch import ICASSP_2022_MODEL_PATH
+            if any(map(lambda x: not (default_path / (x + '.wav')).exists(), ['bass', 'vocals', 'drums', 'other'])):
+                seperate(None, args.start, args.duration)
+        elif not (default_path / (args.stem + '.wav')).exists():
+            seperate(args.stem, args.start, args.duration)
+        print("Seperation done...")
 
-        _, midi_data, _ = predict(str(default_path / (args.stem + '.wav')))
-        midi_data.write(str(midi_temp))
-    print("Prediction done...")
+        # Creates midi file from components
+        if not midi_temp.exists():
+            if args.stem is None:
+                args.stem = 'bass'
+            from basic_pitch.inference import predict
+            from basic_pitch import ICASSP_2022_MODEL_PATH
+
+            _, midi_data, _ = predict(str(default_path / (args.stem + '.wav')))
+            midi_data.write(str(midi_temp))
+        print("Prediction done...")
 
     # Connect to raspberry pi
     sock = BluetoothSocket(RFCOMM)
@@ -127,7 +132,7 @@ def play():
     print("Connection done...")
 
     # Send messages to raspberry pi
-    for msg in MidiFile(str(midi_temp)).play():
+    for msg in MidiFile(str(args.midi)).play():
         if msg.type == 'note_on':
             sock.send(f'{msg.note} {msg.velocity}')
     sock.close()
