@@ -1,0 +1,30 @@
+[
+    {
+        "direction": 5,
+        "step": 2,
+        "bass": 31,
+        "pwm": 17,
+        "pwm_list": [5, 7]
+    },
+    {
+        "direction": 6,
+        "step": 3,
+        "bass": 36,
+        "pwm": 27,
+        "pwm_list": [4, 8]
+    },
+    {
+        "direction": 20,
+        "step": 14,
+        "bass": 41,
+        "pwm": 10,
+        "pwm_list": [4, 6]
+    },
+    {
+        "direction": 21,
+        "step": 15,
+        "bass": 46,
+        "pwm": 9,
+        "pwm_list": [5, 7]
+    }
+]
