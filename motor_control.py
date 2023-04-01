@@ -4,21 +4,17 @@ from threading import Lock
 from time import sleep
 import RPi.GPIO as GPIO
 
-# DONT BE AN IDIOT TONY FIND MAC ADDRESS AND ADD TO BLUETOOTH DEVICES ON ILLINOIS GUEST DEVICES...
-# See if Pluckers work
-# See if other things work
-
 NUM_FRETS = 7
 NUM_IN_SCALE = 12
 PWM_SLEEP = 0.5
-STEP_SLEEP = 0.0003
+STEP_SLEEP = 0.0009
 
 def load_motors(file_path='motor_config.json'):
     with open(file_path, 'r') as f:
         motors = load(f)
         motor_set = MotorSet()
         for motor in motors:
-            motor_set.add(Motor(motor['direction'], motor['step'], motor['bass'], motor['pwm'], motor['pwm_list']))
+            motor_set.add(Motor(motor['direction'], motor['step'], motor['bass'], motor['pwm'], motor['pwm_list'], motor['voltage'], motor['multiplier']))
         
         return motor_set
 
@@ -33,10 +29,11 @@ class MotorSet:
 
     def play_note(self, note):
         mc = min(self.motors, key=lambda m: m.score(note))
+        print(note)
         future = self.executor.submit(mc.play, note)
 
 class Motor:
-    def __init__(self, direction, step, bass, pwm, pwm_list):
+    def __init__(self, direction, step, bass, pwm, pwm_list, voltage, multiplier):
         self.direction = direction
         self.step = step
         self.low = bass
@@ -45,10 +42,13 @@ class Motor:
         self.pwm_list = pwm_list
         self.pwm_index = 0
         self.location = 0
+        self.multiplier = multiplier
+        self.voltage = voltage
+        self.distances = [1.625, 1.5, 1.44, 1.375, 1.25, 1.1875]
 
         GPIO.setup(self.direction, GPIO.OUT)
         GPIO.setup(self.step, GPIO.OUT)
-        GPIO.output(self.direction, GPIO.LOW)
+        GPIO.output(self.direction, voltage)
         GPIO.output(self.step, GPIO.LOW)
 
         GPIO.setup(self.pwm, GPIO.OUT)
@@ -86,12 +86,20 @@ class Motor:
         else:
             return False, note
 
+    def find_num_steps(self, note):
+        if note - self.location - self.low > 0:
+            GPIO.output(self.direction, self.voltage)
+        else:
+            GPIO.output(self.direction, (self.voltage + 1) % 2)
+        calc = sum(self.distances[min(self.location, note - self.low): max(self.location, note - self.low)])
+        return calc
+
     def move(self, num_steps):
-        for i in range(num_steps):
+        for i in range(int(num_steps)):
             sleep(STEP_SLEEP)
             GPIO.output(self.step, GPIO.LOW)
             sleep(STEP_SLEEP)
-            GPIO.outpu(self.step, GPIO.HIGH)
+            GPIO.output(self.step, GPIO.HIGH)
 
     def pluck(self):
         self.pwm_index = (self.pwm_index + 1) % len(self.pwm_list)
@@ -101,10 +109,11 @@ class Motor:
     def play(self, note):
         _, adjusted_note = self.getAdjustedNote(note)
         self.a_lock.acquire()
-        
-        # change direction
-        # calculate num steps
-        # move
+        self.l_lock.acquire()
+        calc = self.find_num_steps(note)
+        self.l_lock.release()
+        self.move(calc / self.multiplier)
+        sleep(0.1)
         self.pluck()
 
         self.l_lock.acquire()
