@@ -8,8 +8,10 @@ def on_note(data):
     if data == "stop":
         print("stopping")
         for motor in motors.motors:
-            calc = motor.find_num_steps(motor.low)
-            motor.move(calc / motor.multiplier)
+            if motor.low != 46:
+                calc = motor.find_num_steps(motor.low)
+                motor.move(calc / motor.multiplier)
+                motor.location = 0
             if motor.pwm_index == 1:
                 motor.pluck()
     else:
